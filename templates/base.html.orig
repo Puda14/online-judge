@@ -61,8 +61,8 @@
         <link rel="stylesheet" type="text/css" href="{{ static('libs/clipboard/tooltip.css') }}">
         <link rel="stylesheet" type="text/css" href="{{ static('libs/select2/select2.css') }}">
     {% endcompress %}
-    <link rel="stylesheet" href="{{ static('pnloj-ui.css') }}?v=7">
-    <script defer src="{{ static('pnloj-ui.js') }}?v=4"></script>
+    <link rel="stylesheet" href="{{ static('pnloj-ui.css') }}?v=5">
+    <script defer src="{{ static('pnloj-ui.js') }}?v=3"></script>
     <link rel="canonical"
           href="{{ DMOJ_SCHEME }}://{{ DMOJ_CANONICAL|default(site.domain) }}{{ request.get_full_path() }}">
     {% if request.user.is_impersonate %}
@@ -193,7 +193,7 @@
         <a id="navicon" href="javascript:void(0)" aria-label="{{ _('Open menu') }}"><i class="fa fa-bars"></i></a>
         <a class="pnloj-mobile-brand" href="{{ url('home') }}">
             <img src="{{ static('icons/logo.png') }}" alt="" width="34" height="34">
-            <span>PNL:OJ</span>
+            <span>PNLOJ</span>
         </a>
         <ul id="nav-list">
             <li class="home-nav-element"><a href="{{ url('home') }}">{% include "site-logo-fragment.html" %}</a></li>
@@ -318,9 +318,24 @@
     {% block bodyend %}{% endblock %}
 
     <footer>
-        {% if misc_config.footer %}
-            <span id="footer-content">{{ misc_config.footer|safe }}</span>
-        {% endif %}
+        <span id="footer-content">
+            <br>
+            <a style="color: #808080" href="https://dmoj.ca">{{ _('proudly powered by **DMOJ**')|markdown('default', strip_paragraphs=True) }}</a> |
+            {% if misc_config.footer %}
+                {{ misc_config.footer|safe }} |
+            {% endif %}
+            <form action="{{ url('set_language') }}" method="post" style="display: inline">
+                {% csrf_token %}
+            <input name="next" type="hidden" value="{{ request.get_full_path() }}">
+            <select name="language" onchange="form.submit()" style="height: 1.5em">
+                {% for language in language_info_list(LANGUAGES) %}
+                    <option value="{{ language.code }}" {% if language.code == LANGUAGE_CODE %}selected{% endif %}>
+                        {{ language.name_local }} ({{ language.code }})
+                    </option>
+                {% endfor %}
+            </select>
+          </form>
+        </span>
     </footer>
 </div>
 </body>

@@ -1,0 +1,35 @@
+{% extends "admin/base_site.html" %}
+{% load static i18n %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <link rel="icon" type="image/x-icon" href="{% static 'icons/favicon.ico' %}?v=6">
+    <link rel="shortcut icon" type="image/x-icon" href="{% static 'icons/favicon.ico' %}?v=6">
+    <link rel="apple-touch-icon" href="{% static 'icons/logo.png' %}?v=6">
+    <script id="pnloj-theme-init">
+        (function () {
+            var selected = 'auto';
+            try {
+                var stored = localStorage.getItem('pnloj-theme');
+                if (stored === 'light' || stored === 'dark') selected = stored;
+            } catch (error) {}
+            if (selected !== 'light' && selected !== 'dark') selected = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-pnloj-theme', selected);
+        }());
+    </script>
+    <script defer src="{% static 'pnloj-ui.js' %}?v=1"></script>
+{% endblock %}
+
+{% block pretitle %}{{ block.super }}
+    <form style="display: none" id="empty-action-form" method="post">
+        {% csrf_token %}
+    </form>
+    <script>
+        django.jQuery(function ($) {
+            $('.action-link').on('click', function () {
+                $('#empty-action-form').attr('action', this.href).trigger('submit');
+                return false;
+            });
+        });
+    </script>
+{% endblock %}

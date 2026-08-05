@@ -3,6 +3,8 @@
 {% elif logo_override_image is defined and logo_override_image %}
     <img src="{{ logo_override_image|camo }}" alt="{{ SITE_NAME }}" height="44" style="border: none">
 {% else %}
-    <img src="{{ static('icons/logo.svg') }}" alt="{{ SITE_NAME }}" width="160" height="44"
-         onerror="this.src=&quot;{{ static('icons/logo.png') }}&quot;; this.onerror=null" style="border: none">
+    <span class="pnloj-brand">
+        <img class="pnloj-brand-logo" src="{{ static('icons/logo.png') }}" alt="" width="40" height="40">
+        <span class="pnloj-brand-name">Phạm Ngũ Lão OJ</span>
+    </span>
 {% endif %}
