@@ -1,0 +1,4 @@
+pretest_test_cases:
+- in: manual/case-1.in
+  out: manual/case-1.out
+  points: 30

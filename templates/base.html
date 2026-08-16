@@ -27,16 +27,31 @@
             document.documentElement.setAttribute('data-pnloj-theme', selected);
         }());
     </script>
-    {% if og_image %}
-        <meta property="og:image" content="{{ request.build_absolute_uri(og_image) }}">
-    {% endif %}
-    {% block og_title %}{% endblock %}
+    {% set default_social_image = static("icons/logo.png") ~ "?v=7" %}
+    {% set social_image = og_image if og_image else default_social_image %}
+    <meta property="og:type" content="website">
+    {% block og_title %}
+        <meta property="og:title" content="{% if title %}{{ title }} - {% endif %}{{ SITE_LONG_NAME }}">
+    {% endblock %}
     <meta property="og:site_name" content="{{ SITE_LONG_NAME }}">
     <meta property="og:url"
           content="{{ DMOJ_SCHEME }}://{{ DMOJ_CANONICAL|default(site.domain) }}{{ request.get_full_path() }}">
+    <meta property="og:image" content="{{ request.build_absolute_uri(social_image) }}">
+    <meta property="og:image:secure_url" content="{{ request.build_absolute_uri(social_image) }}">
+    <meta property="og:image:alt" content="Logo {{ SITE_LONG_NAME }}">
+    {% if not og_image %}
+        <meta property="og:image:type" content="image/png">
+        <meta property="og:image:width" content="1024">
+        <meta property="og:image:height" content="1024">
+    {% endif %}
     {% if meta_description %}
         <meta property="og:description" content="{{ meta_description }}">
+    {% elif misc_config.meta_description %}
+        <meta property="og:description" content="{{ misc_config.meta_description }}">
     {% endif %}
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:image" content="{{ request.build_absolute_uri(social_image) }}">
+    <meta name="twitter:image:alt" content="Logo {{ SITE_LONG_NAME }}">
     {% block meta %}{% endblock %}
     {% if not INLINE_FONTAWESOME %}
         <link rel="stylesheet" href="{{ FONTAWESOME_CSS }}">

@@ -1,0 +1,17 @@
+archive: aplusb.zip
+test_cases:
+- in: manual/case-1.in
+  out: manual/case-1.out
+  points: 10
+- in: manual/case-2.in
+  out: manual/case-2.out
+  points: 10
+- in: manual/case-3.in
+  out: manual/case-3.out
+  points: 1
+- in: manual/case-4.in
+  out: manual/case-4.out
+  points: 10
+- in: manual/case-5.in
+  out: manual/case-5.out
+  points: 20

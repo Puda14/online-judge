@@ -14,17 +14,19 @@
             var $table = $('#case-table');
             $table.on('add-row', function (e, $tr) {
                 $tr.find('input').filter('[id$=file]').each(function () {
-                    var $select, val = $(this).replaceWith($select = $('<select>').attr({
-                        id: $(this).attr('id'),
-                        name: $(this).attr('name'),
+                    var $input = $(this), val = $input.val();
+                    var $select = $('<select>').attr({
+                        id: $input.attr('id'),
+                        name: $input.attr('name'),
                         style: 'width: 100%'
-                    })).val();
-                    $select.select2({
-                        theme: '{{ DMOJ_SELECT2_THEME }}',
-                        data: window.valid_files,
-                        allowClear: true,
-                        placeholder: ''
-                    }).val(val).trigger('change').on('change', function () {
+                    }).append($('<option>').val('').text(''));
+                    $.each(window.valid_files, function (_, file) {
+                        $select.append($('<option>').val(file).text(file));
+                    });
+                    if (val && !~window.valid_files.indexOf(val))
+                        $select.append($('<option>').val(val).text(val));
+                    $input.replaceWith($select);
+                    $select.val(val).on('change', function () {
                         var val = $select.val();
                         if (val) {
                             if ($select.attr('id').endsWith('input_file'))
@@ -78,7 +80,7 @@
                 }).appendTo($td);
 
                 $checker.change(function () {
-                    $precision.toggle($checker.val().startsWith('floats')).change();
+                    $precision.toggle(($checker.val() || '').startsWith('floats')).change();
                 }).change();
             }
 
@@ -93,12 +95,15 @@
                 handle_table_reorder();
             }
 
-            checker_precision($('#id_problem-data-checker'));
+            try {
+                checker_precision($('#id_problem-data-checker'));
+            } catch (error) {
+                window.console && console.error('Unable to initialize global checker precision:', error);
+            }
 
             $table.on('add-row', function (e, $tr) {
                 var $order = $tr.find('input').filter('[id$=order]').attr('type', 'hidden').val(++order);
-                $order.after($('<span>', {'class': 'order'}).text($order.val()))
-                    .after($('<i>', {'class': 'fa fa-fw fa-lg fa-ellipsis-v'}));
+                $tr.find('.order-display').text($order.val());
 
                 var $opts = $tr.find('input').slice(2, 6);
                 var $files = $tr.find('select').slice(1, 3);
@@ -110,12 +115,12 @@
                         case 'E':
                             disabled = val == 'S';
                             $opts.toggle(val == 'S');
-                            $files.siblings('.select2').hide();
+                            $files.hide();
                             $checker.toggle(val == 'S');
                             break;
                         default:
                             $opts.toggle(val == 'C');
-                            $files.siblings('.select2').toggle(val == 'C');
+                            $files.toggle(val == 'C');
                             $checker.toggle(val == 'C');
                             var $prevs = $tr.prevAll('tr[data-type=S], tr[data-type=E]');
                             disabled = $prevs.length && $prevs.get(0).getAttribute('data-type') == 'S';
@@ -127,7 +132,7 @@
 
                 function addToolTip(linkClass, editorClass) {
                     var tooltip_classes = 'tooltipped tooltipped-s';
-                    $tr.find(linkClass).mouseover(function () {
+                    var $links = $tr.find(linkClass).mouseover(function () {
                         switch ($tr.attr('data-type')) {
                             case 'C':
                             case 'S':
@@ -136,7 +141,10 @@
                         }
                     }).mouseout(function () {
                         $(this).removeClass(tooltip_classes).removeAttr('aria-label');
-                    }).featherlight($(editorClass), {
+                    });
+                    if (!$.fn.featherlight)
+                        return;
+                    $links.featherlight($(editorClass), {
                         beforeOpen: function () {
                             switch ($tr.attr('data-type')) {
                                 case 'C':
@@ -163,11 +171,32 @@
                 addToolTip('a.edit-batch-dependencies', '.batch-dependencies-editor');
 
                 checker_precision($tr.find('select[id$=checker]'));
-            }).find('tbody:first').find('tr').each(function () {
-                $table.trigger('add-row', [$(this)]);
+            });
+
+            function fallback_initialize_row($row) {
+                var $order = $row.find('input[id$=order]').attr('type', 'hidden');
+                var current = parseInt($order.val());
+                if (!current) {
+                    current = ++order;
+                    $order.val(current);
+                } else {
+                    order = Math.max(order, current);
+                }
+                $row.find('.order-display').text(current);
+            }
+
+            $table.find('tbody:first').find('tr.case-row').each(function () {
+                var $row = $(this);
+                try {
+                    $table.trigger('add-row', [$row]);
+                } catch (error) {
+                    window.console && console.error('Unable to enhance test case row:', error);
+                    fallback_initialize_row($row);
+                }
             });
 
             $('form').submit(function () {
+                sync_case_order();
                 $table.find('tbody:first').find('tr').each(function () {
                     var filled = false;
                     $(this).find('input, select').each(function () {
@@ -186,48 +215,43 @@
 
             var $total = $('#id_cases-TOTAL_FORMS');
 
-            $('a#add-case-row').click(function () {
+            $('[data-add-case]').click(function () {
                 var $tr;
                 $table.find('tbody:first').append($tr = $($table.find('.extra-row-body').html()
                     .replace(/__prefix__/g, $total.val())));
                 $tr.find('.type-column select option[value="C"]').attr('selected', true);
                 $total.val(parseInt($total.val()) + 1);
-                $table.trigger('add-row', [$tr]);
-                window.scrollBy(0, $tr.height());
+                try {
+                    $table.trigger('add-row', [$tr]);
+                } catch (error) {
+                    window.console && console.error('Unable to enhance new test case row:', error);
+                    fallback_initialize_row($tr);
+                }
+                sync_case_order();
+                refresh_case_count();
+                $tr.addClass('new-case-row');
+                if ($tr.get(0))
+                    $tr.get(0).scrollIntoView({behavior: 'smooth', block: 'center'});
                 return false;
             });
 
-            var oldIndex;
-            $table.sortable({
-                containerSelector: 'table',
-                itemPath: '> tbody:first',
-                itemSelector: 'tr',
-                handle: 'i.fa-ellipsis-v',
-                placeholder: '<tr class="placeholder">',
-                onDragStart: function ($item, container, _super) {
-                    oldIndex = $item.index();
-                    _super($item, container);
-                },
-                onDrop: function ($item, container, _super) {
-                    var newIndex = $item.index();
-                    if (newIndex > oldIndex) {
-                        var order = parseInt($item.parent().children().slice(oldIndex, newIndex).each(function () {
-                            var $order = $(this).find('input[id$=order]');
-                            $order.val(parseInt($order.val()) - 1).siblings('span.order').text($order.val());
-                        }).last().after($item).find('input[id$=order]').val());
-                        $item.find('input[id$=order]').val(order + 1).siblings('span.order').text(order + 1);
-                    } else if (newIndex < oldIndex) {
-                        var order = parseInt($item.parent().children().slice(newIndex + 1, oldIndex + 1).each(function () {
-                            var $order = $(this).find('input[id$=order]');
-                            $order.val(parseInt($order.val()) + 1).siblings('span.order').text($order.val());
-                        }).first().before($item).find('input[id$=order]').val());
-                        $item.find('input[id$=order]').val(order - 1).siblings('span.order').text(order - 1);
-                    }
-                    if (newIndex != oldIndex)
-                        handle_table_reorder();
-                    _super($item, container);
+            if ($.fn.sortable) {
+                try {
+                    $table.sortable({
+                        containerSelector: 'table',
+                        itemPath: '> tbody:first',
+                        itemSelector: 'tr.case-row',
+                        handle: 'i.fa-ellipsis-v',
+                        placeholder: '<tr class="placeholder">',
+                        onDrop: function ($item, container, _super) {
+                            _super($item, container);
+                            sync_case_order();
+                        }
+                    });
+                } catch (error) {
+                    window.console && console.error('Drag-and-drop unavailable; arrow controls remain active:', error);
                 }
-            });
+            }
 
             var $controls = $('#column-visible');
             var problem = $controls.attr('data-problem');
@@ -248,26 +272,646 @@
                 }
                 $this.prop('checked', filled).trigger('change');
             });
+
+            function refresh_case_count() {
+                var count = $table.find('tbody:first > tr.case-row').filter(function () {
+                    return !$(this).find('input[id$=DELETE]').is(':checked');
+                }).length;
+                $('.case-count').text(count + ' {{ _('cases') }}');
+            }
+
+            function sync_case_order() {
+                var $rows = $table.find('tbody:first > tr.case-row').filter(function () {
+                    return !$(this).find('input[id$=DELETE]').is(':checked');
+                });
+                $rows.each(function (index) {
+                    $(this).find('input[id$=order]').val(index + 1);
+                    $(this).find('.order-display').text(index + 1);
+                });
+                $rows.find('[data-move-case]').prop('disabled', false);
+                $rows.first().find('[data-move-case="up"]').prop('disabled', true);
+                $rows.last().find('[data-move-case="down"]').prop('disabled', true);
+                handle_table_reorder();
+            }
+
+            $table.on('click', '[data-move-case]', function () {
+                var $row = $(this).closest('tr.case-row');
+                var direction = $(this).attr('data-move-case');
+                var $target = direction == 'up' ? $row.prevAll('tr.case-row:first') : $row.nextAll('tr.case-row:first');
+                if (!$target.length)
+                    return;
+                if (direction == 'up')
+                    $row.insertBefore($target);
+                else
+                    $row.insertAfter($target);
+                sync_case_order();
+                $row.removeClass('new-case-row');
+                window.setTimeout(function () { $row.addClass('new-case-row'); }, 0);
+            });
+
+            $table.on('change', 'input[id$=DELETE]', function () {
+                $(this).closest('tr').toggleClass('pending-delete', this.checked);
+                refresh_case_count();
+            }).find('input[id$=DELETE]').trigger('change');
+
+            $table.on('click', '[data-delete-case]', function () {
+                var $button = $(this);
+                if (!window.confirm('{{ _('Delete this test case? The form will be saved immediately.') }}'))
+                    return;
+                $button.closest('tr').find('input[id$=DELETE]').prop('checked', true).trigger('change');
+                $button.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> {{ _('Deleting...') }}');
+                var form = document.getElementById('test-data-form');
+                if (form.requestSubmit)
+                    form.requestSubmit();
+                else
+                    form.submit();
+            });
+
+            $table.on('click', '[data-inline-editor]', function () {
+                var $button = $(this);
+                var $modal = $button.closest('.modal-card');
+                var $panel = $modal.find('[data-editor-panel]');
+                var $input = $button.siblings('input[type=hidden]');
+                $panel.data('target-input', $input.get(0));
+                $panel.find('[data-editor-label]').text($button.attr('title'));
+                $panel.find('[data-editor-textarea]').val($input.val());
+                $panel.addClass('is-open');
+                $panel.find('[data-editor-textarea]').trigger('focus');
+            });
+
+            $table.on('click', '[data-editor-save]', function () {
+                var $panel = $(this).closest('[data-editor-panel]');
+                var input = $panel.data('target-input');
+                if (input)
+                    $(input).val($panel.find('[data-editor-textarea]').val()).trigger('change');
+                $panel.removeClass('is-open');
+            });
+
+            $table.on('click', '[data-editor-cancel]', function () {
+                $(this).closest('[data-editor-panel]').removeClass('is-open');
+            });
+
+            $('.modal-shell').click(function (event) {
+                if (event.target === this)
+                    window.location.hash = '';
+            });
+
+            $(document).keydown(function (event) {
+                if (event.key === 'Escape')
+                    window.location.hash = '';
+            });
+
+            sync_case_order();
         });
+
+    </script>
+    <script type="text/javascript">
+        window.valid_files = window.valid_files || {{ valid_files_json }};
+        (function () {
+            if (window.__dmojProblemDataActionsBound)
+                return;
+            window.__dmojProblemDataActionsBound = true;
+
+            function caseTableBody() {
+                var table = document.getElementById('case-table');
+                return table ? table.querySelector('tbody:not(.extra-row-body)') : null;
+            }
+
+            function activeRows() {
+                var body = caseTableBody();
+                if (!body)
+                    return [];
+                return Array.prototype.filter.call(body.children, function (row) {
+                    var deletion = row.querySelector('input[id$=DELETE]');
+                    return row.classList.contains('case-row') && !(deletion && deletion.checked);
+                });
+            }
+
+            function syncOrder() {
+                var rows = activeRows();
+                rows.forEach(function (row, index) {
+                    var order = row.querySelector('input[id$=order]');
+                    var display = row.querySelector('.order-display');
+                    if (order) {
+                        order.type = 'hidden';
+                        order.value = index + 1;
+                    }
+                    if (display)
+                        display.textContent = index + 1;
+                    row.querySelectorAll('[data-move-case]').forEach(function (button) {
+                        button.disabled = false;
+                    });
+                });
+                if (rows.length) {
+                    var firstUp = rows[0].querySelector('[data-move-case="up"]');
+                    var lastDown = rows[rows.length - 1].querySelector('[data-move-case="down"]');
+                    if (firstUp)
+                        firstUp.disabled = true;
+                    if (lastDown)
+                        lastDown.disabled = true;
+                }
+                var count = document.querySelector('.case-count');
+                if (count)
+                    count.textContent = rows.length + ' {{ _('cases') }}';
+            }
+
+            function enhanceFileFields(row) {
+                row.querySelectorAll('input[id$=_file]').forEach(function (input) {
+                    var select = document.createElement('select');
+                    select.id = input.id;
+                    select.name = input.name;
+                    select.style.width = '100%';
+                    select.appendChild(new Option('', ''));
+                    (window.valid_files || []).forEach(function (file) {
+                        select.appendChild(new Option(file, file));
+                    });
+                    if (input.value && !(window.valid_files || []).includes(input.value))
+                        select.appendChild(new Option(input.value, input.value));
+                    select.value = input.value;
+                    input.replaceWith(select);
+                    select.addEventListener('change', function () {
+                        if (!select.value)
+                            return;
+                        var targetId, candidate;
+                        if (select.id.endsWith('input_file')) {
+                            targetId = select.id.replace(/input_file$/, 'output_file');
+                            candidate = select.value.replace(/in(?!.*?in)/, 'out');
+                        } else {
+                            targetId = select.id.replace(/output_file$/, 'input_file');
+                            candidate = select.value.replace(/out(?!.*?out)/, 'in');
+                        }
+                        var target = document.getElementById(targetId);
+                        if (target && !target.value && Array.prototype.some.call(target.options || [], function (option) {
+                            return option.value == candidate;
+                        }))
+                            target.value = candidate;
+                    });
+                });
+            }
+
+            function addCase() {
+                var body = caseTableBody();
+                var template = document.querySelector('#case-table .extra-row-body');
+                var total = document.getElementById('id_cases-TOTAL_FORMS');
+                if (!body || !template || !total)
+                    return;
+                var index = parseInt(total.value, 10);
+                var previous = body.lastElementChild;
+                body.insertAdjacentHTML('beforeend', template.innerHTML.replace(/__prefix__/g, index));
+                total.value = index + 1;
+                var row = previous ? previous.nextElementSibling : body.firstElementChild;
+                while (row && !row.classList.contains('case-row'))
+                    row = row.nextElementSibling;
+                if (!row)
+                    return;
+                var type = row.querySelector('select[id$=type]');
+                if (type)
+                    type.value = 'C';
+                enhanceFileFields(row);
+                syncOrder();
+                row.classList.add('new-case-row');
+                row.scrollIntoView({behavior: 'smooth', block: 'center'});
+            }
+
+            function adjacentCase(row, direction) {
+                var target = direction == 'up' ? row.previousElementSibling : row.nextElementSibling;
+                while (target && !target.classList.contains('case-row'))
+                    target = direction == 'up' ? target.previousElementSibling : target.nextElementSibling;
+                return target;
+            }
+
+            document.addEventListener('click', function (event) {
+                var add = event.target.closest('[data-add-case]');
+                var move = event.target.closest('[data-move-case]');
+                var remove = event.target.closest('[data-delete-case]');
+                if (!add && !move && !remove)
+                    return;
+                event.preventDefault();
+                event.stopPropagation();
+                if (add) {
+                    addCase();
+                    return;
+                }
+                var row = (move || remove).closest('tr.case-row');
+                if (!row)
+                    return;
+                if (move) {
+                    var direction = move.getAttribute('data-move-case');
+                    var target = adjacentCase(row, direction);
+                    if (!target)
+                        return;
+                    if (direction == 'up')
+                        row.parentNode.insertBefore(row, target);
+                    else
+                        row.parentNode.insertBefore(row, target.nextElementSibling);
+                    syncOrder();
+                    row.classList.remove('new-case-row');
+                    window.setTimeout(function () { row.classList.add('new-case-row'); }, 0);
+                    return;
+                }
+                if (!window.confirm('{{ _('Delete this test case? The form will be saved immediately.') }}'))
+                    return;
+                var deletion = row.querySelector('input[id$=DELETE]');
+                if (deletion)
+                    deletion.checked = true;
+                remove.disabled = true;
+                remove.innerHTML = '<i class="fa fa-spinner fa-spin"></i> {{ _('Deleting...') }}';
+                syncOrder();
+                var form = document.getElementById('test-data-form');
+                if (form.requestSubmit)
+                    form.requestSubmit();
+                else
+                    form.submit();
+            }, true);
+
+            function bootCriticalActions() {
+                activeRows().forEach(enhanceFileFields);
+                syncOrder();
+                var form = document.getElementById('test-data-form');
+                if (form)
+                    form.addEventListener('submit', syncOrder);
+            }
+
+            if (document.readyState == 'loading')
+                document.addEventListener('DOMContentLoaded', bootCriticalActions);
+            else
+                bootCriticalActions();
+        }());
     </script>
 {% endblock %}
 
 {% block media %}
     <style>
+        .test-data-page {
+            --data-card: var(--pn-surface-raised, #202020);
+            --data-soft: var(--pn-surface-soft, #272727);
+            --data-border: var(--pn-border, #3c3c3c);
+            --data-text: var(--pn-text, #f3f4f6);
+            --data-muted: var(--pn-text-soft, #a7adb7);
+            --data-primary: var(--pn-primary, #1683ff);
+            --data-primary-soft: var(--pn-primary-soft, rgba(22, 131, 255, .12));
+            display: grid;
+            width: 100%;
+            min-width: 0;
+            gap: 1.25rem;
+            box-sizing: border-box;
+        }
+
+        #test-data-form {
+            display: grid;
+            min-width: 0;
+            gap: 1.25rem;
+        }
+
+        .intro-card,
+        .method-card,
+        .advanced-panel,
+        .case-panel {
+            min-width: 0;
+            border: 1px solid var(--data-border);
+            border-radius: 12px;
+            background: var(--data-card);
+            box-shadow: var(--pn-shadow-sm, 0 4px 16px rgba(0, 0, 0, .12));
+        }
+
+        .intro-card,
+        .method-card {
+            padding: 1.15rem 1.25rem;
+        }
+
+        .intro-card h2,
+        .method-card h3,
+        .panel-heading h2,
+        .modal-header h2 {
+            margin: 0;
+            color: var(--data-text);
+        }
+
+        .intro-card h2,
+        .panel-heading h2 {
+            font-size: 1.05rem;
+        }
+
+        .method-card h3,
+        .modal-header h2 {
+            font-size: .95rem;
+        }
+
+        .intro-card p,
+        .method-card p,
+        .panel-heading p {
+            margin: .35rem 0 0;
+            color: var(--data-muted);
+            font-size: .8rem;
+            line-height: 1.5;
+        }
+
+        .method-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1.25rem;
+        }
+
+        .method-grid.single-method {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .method-card {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .method-card h3 {
+            display: flex;
+            align-items: center;
+            gap: .55rem;
+        }
+
+        .method-card h3 i {
+            color: var(--data-primary);
+        }
+
+        .upload-control {
+            display: grid;
+            gap: .8rem;
+            padding: 1rem;
+            border: 1px dashed var(--data-border);
+            border-radius: 9px;
+            background: var(--data-soft);
+        }
+
+        .archive-summary,
+        .file-picker {
+            display: grid;
+            gap: .35rem;
+        }
+
+        .archive-summary {
+            padding-bottom: .75rem;
+            border-bottom: 1px solid var(--data-border);
+        }
+
+        .control-label {
+            color: var(--data-text);
+            font-size: .76rem;
+            font-weight: 700;
+        }
+
+        .control-help,
+        .current-archive {
+            color: var(--data-muted);
+            font-size: .72rem;
+            line-height: 1.45;
+        }
+
+        .current-archive {
+            overflow: hidden;
+            color: var(--data-primary);
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-picker input[type=file] {
+            width: 100%;
+            padding: .5rem;
+            border: 1px solid var(--data-border);
+            border-radius: 7px;
+            background: var(--data-card);
+            color: var(--data-text);
+            box-sizing: border-box;
+        }
+
+        .data-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .45rem;
+            min-height: 42px;
+            min-width: 136px;
+            padding: .5rem .9rem;
+            border: 1px solid var(--data-border);
+            border-radius: 8px;
+            background: var(--data-soft);
+            color: var(--data-text);
+            box-sizing: border-box;
+            cursor: pointer;
+            font: inherit;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .data-button:hover {
+            border-color: var(--data-primary);
+            background: var(--data-primary-soft);
+            color: var(--data-primary);
+        }
+
+        .data-button.primary {
+            border-color: var(--data-primary);
+            background: var(--data-primary);
+            color: #fff;
+        }
+
+        .advanced-panel {
+            overflow: hidden;
+        }
+
+        .advanced-panel > summary {
+            padding: 1rem 1.1rem;
+            color: var(--data-text);
+            cursor: pointer;
+            font-weight: 750;
+            list-style-position: inside;
+        }
+
+        .advanced-grid,
+        .case-editor-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1rem;
+            padding: 0 1.1rem 1.1rem;
+        }
+
+        .field {
+            min-width: 0;
+        }
+
+        .field.full {
+            grid-column: 1 / -1;
+        }
+
+        .field > label,
+        .field > strong {
+            display: block;
+            margin-bottom: .4rem;
+            color: var(--data-text);
+            font-size: .76rem;
+            font-weight: 700;
+        }
+
+        .field input:not([type=checkbox]):not([type=radio]):not([type=hidden]),
+        .field select,
+        .field textarea {
+            width: 100%;
+            max-width: none;
+            min-height: 40px;
+            box-sizing: border-box;
+        }
+
+        .choice-card {
+            display: flex !important;
+            align-items: flex-start;
+            gap: .75rem;
+            margin: 0 !important;
+            padding: .85rem;
+            border: 1px solid var(--data-border);
+            border-radius: 8px;
+            background: var(--data-soft);
+            cursor: pointer;
+        }
+
+        .choice-card input[type=checkbox] {
+            flex: 0 0 auto;
+            width: 18px;
+            height: 18px;
+            margin: .1rem 0 0;
+        }
+
+        .choice-copy {
+            display: grid;
+            gap: .2rem;
+        }
+
+        .choice-copy strong {
+            color: var(--data-text);
+            font-size: .78rem;
+        }
+
+        .choice-copy small {
+            color: var(--data-muted);
+            font-size: .71rem;
+            font-weight: 400;
+            line-height: 1.45;
+        }
+
+        .danger-choice strong {
+            color: var(--pn-danger, #ef5350);
+        }
+
+        .case-panel {
+            overflow: hidden;
+        }
+
+        .panel-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1rem 1.1rem;
+            border-bottom: 1px solid var(--data-border);
+            background: var(--data-soft);
+        }
+
+        .case-count {
+            display: inline-flex;
+            margin-left: .35rem;
+            padding: .2rem .55rem;
+            border-radius: 999px;
+            background: var(--data-primary-soft);
+            color: var(--data-primary);
+            font-size: .72rem;
+            vertical-align: middle;
+        }
+
+        .table-wrap {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+        }
+
+        #case-table {
+            width: 100%;
+            min-width: 920px;
+            margin: 0;
+            border: 0;
+            border-collapse: collapse;
+            table-layout: fixed;
+            box-shadow: none;
+        }
+
+        #case-table th,
+        #case-table td {
+            padding: .75rem;
+            border-bottom: 1px solid var(--data-border);
+            vertical-align: top;
+        }
+
+        #case-table th {
+            background: var(--data-card);
+            color: var(--data-muted);
+            font-size: .68rem;
+            letter-spacing: .035em;
+            text-align: left;
+            text-transform: uppercase;
+        }
+
+        #case-table th:nth-child(1) { width: 52px; }
+        #case-table th:nth-child(2) { width: 124px; }
+        #case-table th:nth-child(3),
+        #case-table th:nth-child(4) { width: auto; }
+        #case-table th:nth-child(5) { width: 82px; }
+        #case-table th:nth-child(6) { width: 74px; text-align: center; }
+        #case-table th:nth-child(7) { width: 188px; }
+
+        #case-table td:first-child {
+            overflow: hidden;
+            padding-right: .25rem;
+            padding-left: .25rem;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        #case-table .order-cell input[id$=order] {
+            display: none !important;
+            width: 0 !important;
+            min-width: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
+        }
+
+        #case-table td:nth-child(5) input {
+            width: 64px !important;
+        }
+
+        #case-table td:nth-child(6) {
+            text-align: center;
+        }
+
+        #case-table td:nth-child(6) input {
+            width: 18px;
+            height: 18px;
+            margin: .25rem 0 0;
+        }
+
+        #case-table tbody:first tr:hover {
+            background: var(--data-primary-soft);
+        }
+
         #case-table .select2 {
+            width: 100% !important;
             text-align: initial;
         }
 
-        .order-column {
-            width: 1em;
-        }
-
         .bad-file input, .bad-file .select2-selection {
-            border-color: red;
+            border-color: var(--pn-danger, #ef5350) !important;
         }
 
         span.order {
-            padding-right: 0.5em;
+            display: inline-block;
+            min-width: 1ch;
+            padding-left: .2rem;
+            font-weight: 700;
         }
 
         body.dragging, body.dragging * {
@@ -281,38 +925,19 @@
         }
 
         tr.placeholder {
-            display: block;
-            background: red;
-            position: relative;
-            margin: 0;
-            padding: 0;
-            border: none;
-        }
-
-        tr.placeholder:before {
-            content: "";
-            position: absolute;
-            width: 0;
-            height: 0;
-            border: 5px solid transparent;
-            border-left-color: red;
-            margin-top: -5px;
-            left: -5px;
-            border-right: none;
+            height: 4px;
+            background: var(--data-primary);
         }
 
         i.fa-ellipsis-v {
+            color: var(--data-muted);
             cursor: move;
-        }
-
-        .edit-generator-args, .edit-batch-dependencies {
-            position: relative;
         }
 
         .generator-args-editor textarea, .batch-dependencies-editor textarea {
             display: block;
             width: 100%;
-            margin-bottom: 0.5em;
+            margin-bottom: .7rem;
             height: 8em;
         }
 
@@ -321,20 +946,201 @@
             float: right;
         }
 
-        #case-table tbody td {
-            white-space: nowrap;
+        .points-control {
+            display: grid;
+            gap: .45rem;
         }
 
-        .type-column {
-            width: 8em;
+        .points-control label {
+            display: flex;
+            align-items: center;
+            gap: .4rem;
+            color: var(--data-muted);
+            font-size: .72rem;
+        }
+
+        .row-actions {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: .45rem;
+        }
+
+        .row-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .3rem;
+            min-height: 34px;
+            padding: .35rem .55rem;
+            border: 1px solid var(--data-border);
+            border-radius: 7px;
+            background: var(--data-soft);
+            color: var(--data-text);
+            box-sizing: border-box;
+            cursor: pointer;
+            font-size: .74rem;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .delete-option {
+            color: var(--pn-danger, #ef5350);
+        }
+
+        .move-action {
+            min-width: 34px;
+            padding-right: .4rem;
+            padding-left: .4rem;
+        }
+
+        .move-action:disabled {
+            opacity: .35;
+            cursor: not-allowed;
+        }
+
+        .delete-option input {
+            width: 16px;
+            height: 16px;
+            margin: 0;
+        }
+
+        .pending-delete {
+            opacity: .5;
+            text-decoration: line-through;
+        }
+
+        .delete-field {
+            display: none;
+        }
+
+        .new-case-row {
+            animation: new-case-highlight 1.4s ease-out;
+        }
+
+        @keyframes new-case-highlight {
+            from { background: color-mix(in srgb, var(--data-primary) 32%, transparent); }
+            to { background: transparent; }
+        }
+
+        .form-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1rem 1.1rem;
+            background: var(--data-soft);
+        }
+
+        .form-actions p {
+            margin: 0;
+            color: var(--data-muted);
+            font-size: .75rem;
+        }
+
+        .modal-shell {
+            position: fixed;
+            inset: 0;
+            z-index: 5000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background: rgba(0, 0, 0, .68);
+        }
+
+        .modal-shell:target {
+            display: flex;
+        }
+
+        .modal-card {
+            width: min(820px, 100%);
+            max-height: calc(100vh - 2rem);
+            overflow: hidden;
+            border: 1px solid var(--data-border);
+            border-radius: 14px;
+            background: var(--data-card);
+            box-shadow: 0 22px 70px rgba(0, 0, 0, .45);
+        }
+
+        .modal-header,
+        .modal-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: .9rem 1rem;
+            background: var(--data-soft);
+        }
+
+        .modal-header {
+            border-bottom: 1px solid var(--data-border);
+        }
+
+        .modal-footer {
+            justify-content: flex-end;
+            border-top: 1px solid var(--data-border);
+        }
+
+        .modal-close {
+            color: var(--data-muted);
+            font-size: 1.4rem;
+            text-decoration: none;
+        }
+
+        .modal-body {
+            max-height: calc(100vh - 145px);
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .modal-body .case-editor-grid {
+            padding: 0;
+        }
+
+        .case-editor-grid { gap: 1.15rem 1.5rem; }
+        .case-editor-grid .field { display: flex; flex-direction: column; align-items: stretch; }
+        .case-editor-grid .field > label,
+        .case-editor-grid .field > strong { margin-bottom: .5rem; text-align: left; }
+        .case-editor-grid .compact-number { max-width: 12rem; }
+        .advanced-action-card { min-height: 92px; padding: .9rem; border: 1px solid var(--data-border); border-radius: 9px; background: var(--data-soft); box-sizing: border-box; }
+        .advanced-action-card .row-action { align-self: flex-start; }
+        .inline-advanced-editor { display: none; grid-column: 1 / -1; gap: .7rem; padding: 1rem; border: 1px solid var(--data-border); border-radius: 9px; background: var(--data-soft); }
+        .inline-advanced-editor.is-open { display: grid; }
+        .inline-advanced-editor textarea { width: 100%; min-height: 120px; resize: vertical; box-sizing: border-box; }
+        .inline-editor-actions { display: flex; justify-content: flex-end; gap: .6rem; }
+
+        .form-errors,
+        ul.errorlist {
+            color: var(--pn-danger, #ef5350);
         }
 
         ul.errorlist {
-            border: 3px red solid;
-            border-radius: 5px;
-            padding-top: 1em;
-            padding-bottom: 1em;
-            background: #e99;
+            margin: .3rem 0;
+            padding-left: 1.2rem;
+            font-size: .76rem;
+        }
+
+        @media (max-width: 760px) {
+            .method-grid,
+            .advanced-grid,
+            .case-editor-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .field.full {
+                grid-column: auto;
+            }
+
+            .panel-heading,
+            .form-actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .data-button {
+                width: 100%;
+            }
         }
     </style>
 {% endblock %}
@@ -348,108 +1154,271 @@
 {% endblock %}
 
 {% block body %}
-    {% if data_form.instance.feedback %}
-        <ul class="errorlist">
-            <li>{{ data_form.instance.feedback }}</li>
-        </ul>
-    {% endif %}
-    <form action="" method="POST" enctype="multipart/form-data">
-        {% csrf_token %}
-        {{ cases_formset.management_form }}
-        <table class="table">{{ data_form.as_table() }}</table>
-        <div id="column-visible" data-problem="{{ problem.code }}">
-            <strong>{{ _('Show columns:') }}</strong>
-            <label>
-                <input type="checkbox" data-suffix="output_prefix">
-                {{ _('Output prefix') }}
-            </label>
-            <label>
-                <input type="checkbox" data-suffix="output_limit">
-                {{ _('Output limit') }}
-            </label>
-            <label>
-                <input type="checkbox" data-suffix="checker">
-                {{ _('Checker') }}
-            </label>
-            <label>
-                <input type="checkbox" data-suffix="generator_args">
-                {{ _('Generator args') }}
-            </label>
-            <label>
-                <input type="checkbox" data-suffix="batch_dependencies">
-                {{ _('Batch dependencies') }}
-            </label>
-        </div>
-        <table id="case-table" class="table">
-            <thead>
-            <tr>
-                <th class="order-column"></th>
-                <th class="type-column">{{ _('Type') }}</th>
-                <th>{{ _('Input file') }}</th>
-                <th>{{ _('Output file') }}</th>
-                <th>{{ _('Points') }}</th>
-                <th>{{ _('Pretest?') }}</th>
-                <th class="output-prefix">{{ _('Output prefix') }}</th>
-                <th class="output-limit">{{ _('Output limit') }}</th>
-                <th class="checker">{{ _('Checker') }}</th>
-                <th class="generator-args">{{ _('Generator args') }}</th>
-                <th class="batch-dependencies">{{ _('Batch Dependencies') }}</th>
-                {% if cases_formset.can_delete %}
-                    <th>{{ _('Delete?') }}</th>
-                {% endif %}
-            </tr>
-            </thead>
-            <tbody>
-            {% for form in all_case_forms %}
-                {% if form.non_field_errors() %}
-                    <tr>
-                        <td colspan="{{ 9 + cases_formset.can_delete }}">{{ form.non_field_errors() }}</td>
-                    </tr>
-                {% endif %}
-                {% if form.prefix and '__prefix__' in form.prefix %}
-                    </tbody>
-                    <tbody class="extra-row-body" style="display: none">
-                {% endif %}
-                <tr data-type="{{ form['type'].value() }}">
-                    <td>{{ form.id }}{{ form.order.errors }}{{ form.order }}</td>
-                    <td class="type-column">{{ form.type.errors }}{{ form.type }}</td>
-                    <td{% if not (form.empty_permitted or form['type'].value() != 'C' or
-                                  form['input_file'].value() in valid_files) %} class="bad-file"{% endif %}>
-                        {{ form.input_file.errors }}{{ form.input_file }}
-                    </td>
-                    <td{% if not (form.empty_permitted or form['type'].value() != 'C' or
-                                  form['output_file'].value() in valid_files) %} class="bad-file"{% endif %}>
-                        {{ form.output_file.errors }}{{ form.output_file }}
-                    </td>
-                    <td>{{ form.points.errors }}{{ form.points }}</td>
-                    <td>{{ form.is_pretest.errors }}{{ form.is_pretest }}</td>
-                    <td class="output-prefix">{{ form.output_prefix.errors }}{{ form.output_prefix }}</td>
-                    <td class="output-limit">{{ form.output_limit.errors }}{{ form.output_limit }}</td>
-                    <td class="checker">
-                        {{ form.checker.errors }}{{ form.checker }}{{ form.checker_args.errors }}{{ form.checker_args }}
-                    </td>
-                    <td class="generator-args">{{ form.generator_args.errors }}{{ form.generator_args }}
-                        <a href="javascript:void(0)" class="edit-generator-args">
-                            <i class="fa fa-pencil"></i>
-                            {{ _('Edit') }}
-                        </a>
-                    </td>
-                    <td class="batch-dependencies">{{ form.batch_dependencies.errors }}{{ form.batch_dependencies }}
-                        <a href="javascript:void(0)" class="edit-batch-dependencies">
-                            <i class="fa fa-pencil"></i>
-                            {{ _('Edit') }}
-                        </a>
-                    </td>
-                    {% if cases_formset.can_delete %}
-                        <td>{{ form.DELETE }}</td>
+    <div class="test-data-page">
+        {% if data_form.instance.feedback %}
+            <div class="form-errors"><i class="fa fa-exclamation-triangle"></i> {{ data_form.instance.feedback }}</div>
+        {% endif %}
+        {{ data_form.non_field_errors() }}
+        {{ cases_formset.non_form_errors() }}
+
+        <section class="intro-card">
+            <h2>{{ _('Test data manager') }}</h2>
+            <p>{{ _('This interface uses the original DMOJ test-data workflow: upload an archive, reference its files from case rows, then save once to regenerate init.yml.') }}</p>
+        </section>
+
+        <form action="" method="POST" enctype="multipart/form-data" id="test-data-form">
+            {% csrf_token %}
+            {{ cases_formset.management_form }}
+
+            <div class="method-grid single-method">
+                <section class="method-card">
+                    <div>
+                        <h3><i class="fa fa-file-archive-o"></i> {{ _('Upload test archive') }}</h3>
+                        <p>{{ _('DMOJ replaces the current ZIP with the selected ZIP. Test cases are configured separately in the list below.') }}</p>
+                    </div>
+                    <div class="upload-control">
+                        {{ data_form.zipfile.errors }}
+                        {% if data_form.instance.zipfile %}
+                            <div class="archive-summary">
+                                <span class="control-label">{{ _('Current ZIP archive') }}</span>
+                                <a class="current-archive" href="{{ data_form.instance.zipfile.url }}"
+                                   title="{{ _('Download the current ZIP archive') }}">
+                                    <i class="fa fa-download"></i> {{ data_form.instance.zipfile.name }}
+                                </a>
+                            </div>
+                        {% endif %}
+                        <div class="file-picker">
+                            <label class="control-label" for="{{ data_form.zipfile.id_for_label }}">
+                                {{ _('Choose replacement ZIP') }}
+                            </label>
+                            <input type="file" name="{{ data_form.zipfile.html_name }}"
+                                   id="{{ data_form.zipfile.id_for_label }}" accept=".zip,application/zip">
+                            <span class="control-help">{{ _('The filename must end in .zip. Saving follows the original DMOJ replacement behaviour; files are not merged automatically.') }}</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <details class="advanced-panel">
+                <summary><i class="fa fa-cogs"></i> {{ _('Advanced judge settings') }}</summary>
+                <div class="advanced-grid">
+                    <div class="field full">
+                        {{ data_form.generator.errors }}
+                        <label for="{{ data_form.generator.id_for_label }}">{{ data_form.generator.label }}</label>
+                        {% if data_form.instance.generator %}
+                            <div class="archive-summary">
+                                <a class="current-archive" href="{{ data_form.instance.generator.url }}"
+                                   title="{{ _('Download the current generator') }}">
+                                    <i class="fa fa-download"></i> {{ data_form.instance.generator.name }}
+                                </a>
+                            </div>
+                        {% endif %}
+                        <input type="file" name="{{ data_form.generator.html_name }}"
+                               id="{{ data_form.generator.id_for_label }}">
+                    </div>
+                    <div class="field">
+                        <label for="{{ data_form.output_limit.id_for_label }}">{{ data_form.output_limit.label }}</label>
+                        {{ data_form.output_limit.errors }}{{ data_form.output_limit }}
+                    </div>
+                    <div class="field">
+                        <label for="{{ data_form.output_prefix.id_for_label }}">{{ data_form.output_prefix.label }}</label>
+                        {{ data_form.output_prefix.errors }}{{ data_form.output_prefix }}
+                    </div>
+                    <div class="field">
+                        <label for="{{ data_form.unicode.id_for_label }}">{{ data_form.unicode.label }}</label>
+                        {{ data_form.unicode.errors }}{{ data_form.unicode }}
+                    </div>
+                    <div class="field">
+                        <label for="{{ data_form.nobigmath.id_for_label }}">{{ data_form.nobigmath.label }}</label>
+                        {{ data_form.nobigmath.errors }}{{ data_form.nobigmath }}
+                    </div>
+                    <div class="field full checker">
+                        <label for="{{ data_form.checker.id_for_label }}">{{ data_form.checker.label }}</label>
+                        {{ data_form.checker.errors }}{{ data_form.checker }}
+                        {{ data_form.checker_args.errors }}{{ data_form.checker_args }}
+                    </div>
+                    {% if data_form.instance.generator %}
+                        <div class="field full">
+                            <label class="choice-card danger-choice" for="problem-data-generator-clear_id">
+                                <input type="checkbox" name="problem-data-generator-clear"
+                                       id="problem-data-generator-clear_id"
+                                       {% if request.POST.get('problem-data-generator-clear') %}checked{% endif %}>
+                                <span class="choice-copy">
+                                    <strong>{{ _('Remove current generator') }}</strong>
+                                    <small>{{ _('The generator file is removed when all changes are saved.') }}</small>
+                                </span>
+                            </label>
+                        </div>
                     {% endif %}
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-        <input type="submit" value="{{ _('Submit!') }}" class="button">
-        <a id="add-case-row" href="#"><i class="fa fa-plus"></i> {{ _('Add new case') }}</a>
-    </form>
+                    {% if data_form.instance.zipfile %}
+                        <div class="field full">
+                            <label class="choice-card danger-choice" for="problem-data-zipfile-clear_id">
+                                <input type="checkbox" name="problem-data-zipfile-clear"
+                                       id="problem-data-zipfile-clear_id"
+                                       {% if request.POST.get('problem-data-zipfile-clear') %}checked{% endif %}>
+                                <span class="choice-copy">
+                                    <strong>{{ _('Remove current ZIP archive') }}</strong>
+                                    <small>{{ _('Original DMOJ behaviour: referenced case files become unavailable unless a generator supplies them.') }}</small>
+                                </span>
+                            </label>
+                        </div>
+                    {% endif %}
+                </div>
+            </details>
+
+            <section class="case-panel">
+                <div class="panel-heading">
+                    <div>
+                        <h2>
+                            {{ _('Test cases') }}
+                            <span class="case-count">{{ cases_formset.initial_form_count() }} {{ _('cases') }}</span>
+                        </h2>
+                        <p>{{ _('Select files from the ZIP, configure points and pretests, or open Advanced for the original DMOJ case options.') }}</p>
+                    </div>
+                    <a href="#case-table" class="data-button" data-add-case
+                       title="{{ _('Add another original DMOJ test case row') }}">
+                        <i class="fa fa-plus"></i> {{ _('Add test') }}
+                    </a>
+                </div>
+
+                <div class="table-wrap">
+                    <table id="case-table" class="table">
+                        <thead>
+                        <tr>
+                            <th title="{{ _('Drag to reorder') }}">#</th>
+                            <th>{{ _('Type') }}</th>
+                            <th>{{ _('Input file') }}</th>
+                            <th>{{ _('Expected output file') }}</th>
+                            <th>{{ _('Points') }}</th>
+                            <th>{{ _('Pretest') }}</th>
+                            <th>{{ _('Actions') }}</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for form in all_case_forms %}
+                            {% if form.non_field_errors() %}
+                                <tr><td colspan="7">{{ form.non_field_errors() }}</td></tr>
+                            {% endif %}
+                            {% if form.prefix and '__prefix__' in form.prefix %}
+                                </tbody>
+                                <tbody class="extra-row-body" style="display: none">
+                            {% endif %}
+                            <tr class="case-row" data-type="{{ form['type'].value() }}">
+                                <td class="order-cell">
+                                    {{ form.id }}{{ form.order.errors }}{{ form.order }}
+                                    <i class="fa fa-ellipsis-v drag-handle"
+                                       title="{{ _('Drag to reorder this test case') }}"></i>
+                                    <span class="order order-display">{{ form['order'].value() or '' }}</span>
+                                </td>
+                                <td class="type-column">{{ form.type.errors }}{{ form.type }}</td>
+                                <td{% if not (form.empty_permitted or form['type'].value() != 'C' or
+                                              form['input_file'].value() in valid_files) %} class="bad-file"{% endif %}>
+                                    {{ form.input_file.errors }}{{ form.input_file }}
+                                </td>
+                                <td{% if not (form.empty_permitted or form['type'].value() != 'C' or
+                                              form['output_file'].value() in valid_files) %} class="bad-file"{% endif %}>
+                                    {{ form.output_file.errors }}{{ form.output_file }}
+                                </td>
+                                <td>
+                                    {{ form.points.errors }}{{ form.points }}
+                                </td>
+                                <td title="{{ _('Run this case as a pretest') }}">
+                                    {{ form.is_pretest.errors }}{{ form.is_pretest }}
+                                </td>
+                                <td>
+                                    <div class="row-actions">
+                                        <button type="button" class="row-action move-action" data-move-case="up"
+                                                title="{{ _('Move this test case up') }}"
+                                                aria-label="{{ _('Move this test case up') }}">
+                                            <i class="fa fa-arrow-up"></i>
+                                        </button>
+                                        <button type="button" class="row-action move-action" data-move-case="down"
+                                                title="{{ _('Move this test case down') }}"
+                                                aria-label="{{ _('Move this test case down') }}">
+                                            <i class="fa fa-arrow-down"></i>
+                                        </button>
+                                        <a href="#edit-{{ form.prefix }}" class="row-action"
+                                           title="{{ _('Open original DMOJ advanced case options') }}">
+                                            <i class="fa fa-sliders"></i> {{ _('Advanced') }}
+                                        </a>
+
+                                        <div class="modal-shell" id="edit-{{ form.prefix }}">
+                                            <div class="modal-card" role="dialog" aria-modal="true">
+                                                <div class="modal-header">
+                                                    <h2>{{ _('Advanced test case options') }}</h2>
+                                                    <a href="#" class="modal-close" title="{{ _('Close') }}">&times;</a>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="case-editor-grid">
+                                                        <div class="field compact-number">
+                                                            <label for="{{ form.output_prefix.id_for_label }}">{{ form.output_prefix.label }}</label>
+                                                            {{ form.output_prefix.errors }}{{ form.output_prefix }}
+                                                        </div>
+                                                        <div class="field compact-number">
+                                                            <label for="{{ form.output_limit.id_for_label }}">{{ form.output_limit.label }}</label>
+                                                            {{ form.output_limit.errors }}{{ form.output_limit }}
+                                                        </div>
+                                                        <div class="field full checker">
+                                                            <label for="{{ form.checker.id_for_label }}">{{ form.checker.label }}</label>
+                                                            {{ form.checker.errors }}{{ form.checker }}
+                                                            {{ form.checker_args.errors }}{{ form.checker_args }}
+                                                        </div>
+                                                        <div class="field advanced-action-card">
+                                                            <strong>{{ form.generator_args.label }}</strong>
+                                                            {{ form.generator_args.errors }}{{ form.generator_args }}
+                                                            <button type="button" class="row-action edit-generator-args" data-inline-editor="generator"
+                                                               title="{{ _('Edit generator arguments') }}">
+                                                                <i class="fa fa-pencil"></i> {{ _('Edit generator args') }}
+                                                            </button>
+                                                        </div>
+                                                        <div class="field advanced-action-card">
+                                                            <strong>{{ form.batch_dependencies.label }}</strong>
+                                                            {{ form.batch_dependencies.errors }}{{ form.batch_dependencies }}
+                                                            <button type="button" class="row-action edit-batch-dependencies" data-inline-editor="dependencies"
+                                                               title="{{ _('Edit batch dependencies') }}">
+                                                                <i class="fa fa-pencil"></i> {{ _('Edit dependencies') }}
+                                                            </button>
+                                                        </div>
+                                                        <div class="inline-advanced-editor" data-editor-panel>
+                                                            <label data-editor-label></label>
+                                                            <textarea data-editor-textarea></textarea>
+                                                            <div class="inline-editor-actions">
+                                                                <button type="button" class="row-action" data-editor-cancel>{{ _("Cancel") }}</button>
+                                                                <button type="button" class="data-button primary" data-editor-save>{{ _("Save") }}</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <a href="#" class="data-button">{{ _('Done') }}</a>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {% if cases_formset.can_delete %}
+                                            <span class="delete-field">{{ form.DELETE }}</span>
+                                            <button type="button" class="row-action delete-option" data-delete-case
+                                                    title="{{ _('Confirm and delete this test case immediately') }}">
+                                                <i class="fa fa-trash"></i> {{ _('Delete') }}
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="data-button primary"
+                            title="{{ _('Save test archive, settings and all test case changes') }}">
+                        <i class="fa fa-save"></i> {{ _('Save all changes') }}
+                    </button>
+                </div>
+            </section>
+        </form>
+    </div>
     <div style="display: none" class="generator-args-editor"><textarea></textarea><a class="button">{{ _('Save') }}</a></div>
     <div style="display: none" class="batch-dependencies-editor"><textarea></textarea><a class="button">{{ _('Save') }}</a></div>
 {% endblock %}
