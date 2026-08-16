@@ -1121,6 +1121,66 @@
             font-size: .76rem;
         }
 
+        /* Clear action hierarchy and contrast in both light and dark themes. */
+        .test-data-page .data-button {
+            border-color: color-mix(in srgb, var(--data-primary) 38%, var(--data-border));
+            background: var(--data-card);
+            color: var(--data-primary) !important;
+            transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+        }
+
+        .test-data-page .data-button:hover {
+            border-color: var(--data-primary);
+            background: var(--data-primary-soft);
+            color: var(--data-primary) !important;
+        }
+
+        .test-data-page .data-button.primary {
+            border-color: var(--data-primary);
+            background: var(--data-primary);
+            color: #fff !important;
+        }
+
+        .test-data-page .data-button.primary:hover {
+            border-color: color-mix(in srgb, var(--data-primary) 82%, #000);
+            background: color-mix(in srgb, var(--data-primary) 88%, #000);
+            color: #fff !important;
+        }
+
+        .test-data-page .row-action {
+            background: var(--data-card);
+            color: var(--data-text) !important;
+            transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+        }
+
+        .test-data-page .row-action:hover:not(:disabled) {
+            border-color: var(--data-primary);
+            background: var(--data-primary-soft);
+            color: var(--data-primary) !important;
+        }
+
+        .test-data-page .move-action {
+            color: var(--data-muted) !important;
+        }
+
+        .test-data-page .delete-option {
+            border-color: color-mix(in srgb, var(--pn-danger, #ef5350) 40%, var(--data-border));
+            color: var(--pn-danger, #ef5350) !important;
+        }
+
+        .test-data-page .delete-option:hover:not(:disabled) {
+            border-color: var(--pn-danger, #ef5350);
+            background: color-mix(in srgb, var(--pn-danger, #ef5350) 10%, transparent);
+            color: var(--pn-danger, #ef5350) !important;
+        }
+
+        .test-data-page .row-action:disabled {
+            border-color: var(--data-border) !important;
+            background: var(--data-soft) !important;
+            color: color-mix(in srgb, var(--data-muted) 62%, transparent) !important;
+            cursor: not-allowed;
+            opacity: .72;
+        }
         @media (max-width: 760px) {
             .method-grid,
             .advanced-grid,
