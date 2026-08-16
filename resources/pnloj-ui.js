@@ -22,6 +22,26 @@
         return value === 'dark' ? 'dark' : 'light';
     }
 
+    function syncEditorTheme(theme) {
+        var isDark = theme === 'dark';
+
+        if (document.body) {
+            document.body.setAttribute('data-theme', theme);
+        }
+
+        document.querySelectorAll('.main-martor .ui').forEach(function (element) {
+            element.classList.toggle('inverted', isDark);
+        });
+
+        if (!window.ace) {
+            return;
+        }
+
+        document.querySelectorAll('.main-martor .martor-field.ace_editor[id]').forEach(function (element) {
+            window.ace.edit(element.id).setTheme(isDark ? 'ace/theme/twilight' : 'ace/theme/github');
+        });
+    }
+
     function updateThemeControls(theme) {
         var isDark = theme === 'dark';
         var isVietnamese = (document.documentElement.lang || '').toLowerCase().indexOf('vi') === 0;
@@ -49,6 +69,7 @@
     function applyTheme(theme, persist) {
         var selected = theme === 'dark' ? 'dark' : 'light';
         root.setAttribute('data-pnloj-theme', selected);
+        syncEditorTheme(selected);
 
         var baseTheme = document.getElementById('pnloj-base-theme');
         if (baseTheme) {

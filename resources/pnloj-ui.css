@@ -657,7 +657,25 @@ html[data-pnloj-theme="dark"] img:not(.pnloj-brand-logo):not([src*="gravatar"]) 
 #content > hr {
     height: 2px;
     border: 0;
-    background: linear-gradient(90deg, var(--pn-yellow), var(--pn-red), var(--pn-green), var(--pn-blue), transparent 72%);
+    background: var(--pn-primary);
+}
+
+/* Keep problem-page cards comfortably separated from their borders. */
+#common-content #content-right .info-float {
+    box-sizing: border-box;
+    padding: 14px !important;
+}
+
+#common-content #content-left > .content-description {
+    box-sizing: border-box;
+    padding: 18px 20px !important;
+}
+
+#common-content #content-left > .content-description > .clarify {
+    float: none;
+    display: block;
+    width: max-content;
+    margin-left: auto;
 }
 
 #blog-container {
