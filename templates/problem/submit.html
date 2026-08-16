@@ -95,6 +95,8 @@
                 });
 
                 $('#ace_source').on('ace_load', function (e, editor) {
+                    var siteTheme = document.documentElement.getAttribute('data-pnloj-theme');
+                    editor.setTheme(siteTheme === 'dark' ? 'ace/theme/twilight' : 'ace/theme/github');
                     update_language_template();
                     editor.commands.addCommand({
                         name: 'save',
@@ -123,6 +125,29 @@
             });
         </script>
     {% endcompress %}
+    <script type="text/javascript">
+        (function () {
+            function syncSubmitEditorTheme() {
+                var editor = window.ace_source;
+                if (!editor || typeof editor.setTheme !== 'function')
+                    return;
+                var isDark = document.documentElement.getAttribute('data-pnloj-theme') === 'dark';
+                editor.setTheme(isDark ? 'ace/theme/twilight' : 'ace/theme/github');
+            }
+
+            window.addEventListener('load', function () {
+                // django-ace initializes on window.load. Its listener is
+                // registered before this one, so the editor is available here.
+                syncSubmitEditorTheme();
+                if (window.MutationObserver) {
+                    new MutationObserver(syncSubmitEditorTheme).observe(document.documentElement, {
+                        attributes: true,
+                        attributeFilter: ['data-pnloj-theme']
+                    });
+                }
+            });
+        }());
+    </script>
 {% endblock %}
 
 {% block media %}

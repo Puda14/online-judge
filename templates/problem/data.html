@@ -12,6 +12,24 @@
             }
 
             var $table = $('#case-table');
+
+            function keep_file_and_clear_actions_exclusive(fileId, clearId) {
+                var $file = $('#' + fileId), $clear = $('#' + clearId);
+                $file.on('change', function () {
+                    if (this.files && this.files.length)
+                        $clear.prop('checked', false);
+                });
+                $clear.on('change', function () {
+                    if (this.checked)
+                        $file.val('');
+                });
+            }
+
+            keep_file_and_clear_actions_exclusive(
+                'id_problem-data-zipfile', 'problem-data-zipfile-clear_id');
+            keep_file_and_clear_actions_exclusive(
+                'id_problem-data-generator', 'problem-data-generator-clear_id');
+
             $table.on('add-row', function (e, $tr) {
                 $tr.find('input').filter('[id$=file]').each(function () {
                     var $input = $(this), val = $input.val();

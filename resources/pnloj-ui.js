@@ -24,6 +24,7 @@
 
     function syncEditorTheme(theme) {
         var isDark = theme === 'dark';
+        var aceTheme = isDark ? 'ace/theme/twilight' : 'ace/theme/github';
 
         if (document.body) {
             document.body.setAttribute('data-theme', theme);
@@ -38,7 +39,14 @@
         }
 
         document.querySelectorAll('.main-martor .martor-field.ace_editor[id]').forEach(function (element) {
-            window.ace.edit(element.id).setTheme(isDark ? 'ace/theme/twilight' : 'ace/theme/github');
+            window.ace.edit(element.id).setTheme(aceTheme);
+        });
+
+        document.querySelectorAll('.django-ace-widget[id]').forEach(function (element) {
+            var editor = window[element.id];
+            if (editor && typeof editor.setTheme === 'function') {
+                editor.setTheme(aceTheme);
+            }
         });
     }
 

@@ -42,6 +42,27 @@ def checker_args_cleaner(self):
 
 
 class ProblemDataForm(ModelForm):
+    def __init__(self, *args, **kwargs):
+        data = kwargs.get('data')
+        files = kwargs.get('files')
+        prefix = kwargs.get('prefix')
+
+        # A replacement upload and the ClearableFileInput clear flag are
+        # mutually exclusive. The custom template renders those controls in
+        # different sections, so a previously checked clear flag can otherwise
+        # be submitted together with a newly selected file. In that case the
+        # explicit replacement is the least surprising action.
+        if data is not None and files:
+            for field_name in ('zipfile', 'generator'):
+                upload_name = '%s-%s' % (prefix, field_name) if prefix else field_name
+                clear_name = '%s-clear' % upload_name
+                if files.get(upload_name) and clear_name in data:
+                    data = data.copy()
+                    data.pop(clear_name, None)
+                    kwargs['data'] = data
+
+        super(ProblemDataForm, self).__init__(*args, **kwargs)
+
     def clean_zipfile(self):
         if hasattr(self, 'zip_valid') and not self.zip_valid:
             raise ValidationError(_('Your zip file is invalid!'))
@@ -173,10 +194,12 @@ class ProblemDataView(TitleMixin, ProblemManagerMixin):
 
     def get_valid_files(self, data, post=False) -> List[str]:
         try:
-            if post and 'problem-data-zipfile-clear' in self.request.POST:
-                return []
-            elif post and 'problem-data-zipfile' in self.request.FILES:
+            # Match ProblemDataForm's conflict handling: a newly uploaded ZIP
+            # replaces the archive even if a stale clear flag was also posted.
+            if post and 'problem-data-zipfile' in self.request.FILES:
                 return ZipFile(self.request.FILES['problem-data-zipfile']).namelist()
+            elif post and 'problem-data-zipfile-clear' in self.request.POST:
+                return []
             elif data.zipfile:
                 return ZipFile(data.zipfile.path).namelist()
         except BadZipfile:
