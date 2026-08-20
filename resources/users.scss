@@ -3,6 +3,7 @@
 td.user-name {
     padding-left: 2em;
     text-align: left;
+    font-weight: 600;
 }
 
 tr:target {
@@ -26,6 +27,21 @@ tr:target {
 }
 
 .users-table {
+    td.user-name, td.user-name a {
+        color: $color_primary100;
+        font-weight: 600;
+    }
+
+    svg.rate-box.rate-primary0 {
+        circle {
+            stroke: $color_primary100;
+        }
+
+        path {
+            fill: $color_primary100;
+        }
+    }
+
     th.rank, th.points, th.problems, th.username {
         white-space: nowrap;
     }
@@ -57,10 +73,10 @@ tr:target {
     }
 
     th a {
-        color: $color_primary0;
+        color: $color_primary100;
 
         &:link, &:visited {
-            color: $color_primary0;
+            color: $color_primary100;
         }
     }
 }

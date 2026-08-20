@@ -57,11 +57,11 @@
         <link rel="stylesheet" href="{{ FONTAWESOME_CSS }}">
     {% endif %}
     {% if PREFERRED_STYLE_CSS is not none %}
-        <link id="pnloj-base-theme" rel="stylesheet" href="{{ static(PREFERRED_STYLE_CSS) }}"
-              data-light-url="{{ static(LIGHT_STYLE_CSS) }}" data-dark-url="{{ static(DARK_STYLE_CSS) }}">
+        <link id="pnloj-base-theme" rel="stylesheet" href="{{ static(PREFERRED_STYLE_CSS) }}?v=2"
+              data-light-url="{{ static(LIGHT_STYLE_CSS) }}?v=2" data-dark-url="{{ static(DARK_STYLE_CSS) }}?v=2">
     {% else %}
-        <link id="pnloj-base-theme" rel="stylesheet" href="{{ static(LIGHT_STYLE_CSS) }}"
-              data-light-url="{{ static(LIGHT_STYLE_CSS) }}" data-dark-url="{{ static(DARK_STYLE_CSS) }}">
+        <link id="pnloj-base-theme" rel="stylesheet" href="{{ static(LIGHT_STYLE_CSS) }}?v=2"
+              data-light-url="{{ static(LIGHT_STYLE_CSS) }}?v=2" data-dark-url="{{ static(DARK_STYLE_CSS) }}?v=2">
     {% endif %}
     <script>
         (function () {

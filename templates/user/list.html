@@ -2,6 +2,54 @@
 
 {% block title_ruler %}{% endblock %}
 
+{% block users_media %}
+    <style>
+        html[data-pnloj-theme="light"] .users-table th a,
+        html[data-pnloj-theme="light"] .users-table th a:link,
+        html[data-pnloj-theme="light"] .users-table th a:visited {
+            color: #000;
+        }
+
+        html[data-pnloj-theme="dark"] .users-table th a,
+        html[data-pnloj-theme="dark"] .users-table th a:link,
+        html[data-pnloj-theme="dark"] .users-table th a:visited {
+            color: #f8f8f8;
+        }
+
+        html[data-pnloj-theme="light"] .users-table td.user-name,
+        html[data-pnloj-theme="light"] .users-table td.user-name a,
+        html[data-pnloj-theme="light"] .users-table td.user-name a:link,
+        html[data-pnloj-theme="light"] .users-table td.user-name a:visited {
+            color: #000;
+            font-weight: 600;
+        }
+
+        html[data-pnloj-theme="dark"] .users-table td.user-name,
+        html[data-pnloj-theme="dark"] .users-table td.user-name a,
+        html[data-pnloj-theme="dark"] .users-table td.user-name a:link,
+        html[data-pnloj-theme="dark"] .users-table td.user-name a:visited {
+            color: #f8f8f8;
+            font-weight: 600;
+        }
+
+        html[data-pnloj-theme="light"] .users-table th.rate svg.rate-box circle {
+            stroke: #000;
+        }
+
+        html[data-pnloj-theme="light"] .users-table th.rate svg.rate-box path {
+            fill: #000;
+        }
+
+        html[data-pnloj-theme="dark"] .users-table th.rate svg.rate-box circle {
+            stroke: #f8f8f8;
+        }
+
+        html[data-pnloj-theme="dark"] .users-table th.rate svg.rate-box path {
+            fill: #f8f8f8;
+        }
+    </style>
+{% endblock %}
+
 {% block title_row %}
     {% set tab = 'list' %}
     {% include "user/user-list-tabs.html" %}
