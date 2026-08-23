@@ -274,6 +274,7 @@ urlpatterns = [
     ])),
 
     path('blog/', paged_list_view(blog.PostList, 'blog_post_list')),
+    path('blogs/', blog.BlogArchiveList.as_view(), name='blog_archive'),
     path('post/<int:id>-<slug:slug>', blog.PostView.as_view(), name='blog_post'),
 
     path('license/<str:key>', license.LicenseDetail.as_view(), name='license'),

@@ -6227,3 +6227,193 @@ msgstr "Hồ sơ Admin"
 msgid "Check all"
 msgstr "Chọn tất cả"
 
+#: judge/views/blog.py:97 templates/blog/archive.html:61
+msgid "All posts"
+msgstr "Tất cả bài viết"
+
+#: templates/blog/archive.html:15
+msgid "PNL:OJ knowledge hub"
+msgstr "Kho kiến thức PNL:OJ"
+
+#: templates/blog/archive.html:16
+msgid "Learn. Practice. Improve."
+msgstr "Học hỏi. Luyện tập. Tiến bộ."
+
+#: templates/blog/archive.html:17
+msgid "Practical guides, contest strategies, and programming insights to help you solve better."
+msgstr "Hướng dẫn thực tế, chiến thuật thi đấu và kiến thức lập trình giúp bạn giải bài tốt hơn."
+
+#: templates/blog/archive.html:19
+msgid "articles"
+msgstr "bài viết"
+
+#: templates/blog/archive.html:20
+msgid "Curated for learners"
+msgstr "Chọn lọc cho người học"
+
+#: templates/blog/archive.html:33
+msgid "Find your next read"
+msgstr "Tìm bài viết dành cho bạn"
+
+#: templates/blog/archive.html:33
+msgid "Search and filter the entire library."
+msgstr "Tìm kiếm và lọc toàn bộ thư viện."
+
+#: templates/blog/archive.html:37
+msgid "Search articles"
+msgstr "Tìm kiếm bài viết"
+
+#: templates/blog/archive.html:41
+msgid "Search by title, content, or author..."
+msgstr "Tìm theo tiêu đề, nội dung hoặc tác giả..."
+
+#: templates/blog/archive.html:46
+msgid "Author"
+msgstr "Tác giả"
+
+#: templates/blog/archive.html:48
+msgid "All authors"
+msgstr "Tất cả tác giả"
+
+#: templates/blog/archive.html:59
+msgid "Post type"
+msgstr "Loại bài viết"
+
+#: templates/blog/archive.html:62
+msgid "Featured posts"
+msgstr "Bài viết nổi bật"
+
+#: templates/blog/archive.html:63
+msgid "Regular posts"
+msgstr "Bài viết thường"
+
+#: templates/blog/archive.html:68
+msgid "From date"
+msgstr "Từ ngày"
+
+#: templates/blog/archive.html:73
+msgid "To date"
+msgstr "Đến ngày"
+
+#: templates/blog/archive.html:78
+msgid "Sort by"
+msgstr "Sắp xếp theo"
+
+#: templates/blog/archive.html:80
+msgid "Newest first"
+msgstr "Mới nhất trước"
+
+#: templates/blog/archive.html:81
+msgid "Oldest first"
+msgstr "Cũ nhất trước"
+
+#: templates/blog/archive.html:82
+msgid "Title A-Z"
+msgstr "Tiêu đề A-Z"
+
+#: templates/blog/archive.html:83
+msgid "Featured first"
+msgstr "Nổi bật trước"
+
+#: templates/blog/archive.html:89
+msgid "Apply filters"
+msgstr "Áp dụng bộ lọc"
+
+#: templates/blog/archive.html:92
+msgid "Clear filters"
+msgstr "Xóa bộ lọc"
+
+#: templates/blog/archive.html:100
+msgid "posts found"
+msgstr "bài viết được tìm thấy"
+
+#: templates/blog/archive.html:117 templates/blog/content.html:85
+#: templates/blog/list.html:68
+msgid "Featured"
+msgstr "Nổi bật"
+
+#: templates/blog/archive.html:136 templates/blog/list.html:88
+msgid "Read article"
+msgstr "Đọc bài viết"
+
+#: templates/blog/archive.html:149
+msgid "No posts match your filters"
+msgstr "Không có bài viết phù hợp với bộ lọc"
+
+#: templates/blog/archive.html:150
+msgid "Try changing the search text or clearing some filters."
+msgstr "Hãy thử đổi từ khóa tìm kiếm hoặc xóa bớt bộ lọc."
+
+#: templates/blog/archive.html:151 templates/blog/content.html:153
+#: templates/blog/list.html:59
+msgid "View all posts"
+msgstr "Xem tất cả bài viết"
+
+#: templates/blog/content.html:47
+msgid "Link copied"
+msgstr "Đã sao chép liên kết"
+
+#: templates/blog/content.html:67
+msgid "Breadcrumb"
+msgstr "Đường dẫn điều hướng"
+
+#: templates/blog/content.html:83
+msgid "Competitive programming"
+msgstr "Lập trình thi đấu"
+
+#: templates/blog/content.html:103
+msgid "Written by"
+msgstr "Tác giả"
+
+#: templates/blog/content.html:110
+#, python-format
+msgid "%(minutes)s min read"
+msgstr "Đọc trong %(minutes)s phút"
+
+#: templates/blog/content.html:131
+msgid "Was this article helpful?"
+msgstr "Bài viết này có hữu ích không?"
+
+#: templates/blog/content.html:132
+msgid "Share it with your teammates."
+msgstr "Hãy chia sẻ với đồng đội của bạn."
+
+#: templates/blog/content.html:140
+msgid "Copy link"
+msgstr "Sao chép liên kết"
+
+#: templates/blog/content.html:148
+msgid "In this article"
+msgstr "Trong bài viết này"
+
+#: templates/blog/content.html:153
+msgid "Keep exploring"
+msgstr "Tiếp tục khám phá"
+
+#: templates/blog/content.html:163
+msgid "Continue learning"
+msgstr "Tiếp tục học hỏi"
+
+#: templates/blog/content.html:164
+msgid "Latest articles"
+msgstr "Bài viết mới nhất"
+
+#: templates/blog/content.html:166
+msgid "View all"
+msgstr "Xem tất cả"
+
+#: templates/blog/list.html:54
+msgid "Knowledge hub"
+msgstr "Kho kiến thức"
+
+#: templates/blog/list.html:55
+msgid "Latest from the blog"
+msgstr "Bài viết mới nhất"
+
+#: templates/blog/list.html:56
+msgid "Guides, strategies, and stories for competitive programmers."
+msgstr "Hướng dẫn, chiến thuật và câu chuyện dành cho người học lập trình thi đấu."
+
+#: templates/blog/content.html
+msgid "Share article"
+msgstr "Chia sẻ bài viết"

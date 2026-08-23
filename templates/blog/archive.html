@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title_row %}{% endblock %}
+{% block title_ruler %}{% endblock %}
+
+{% block media %}
+    <link rel="alternate" type="application/atom+xml" href="{{ url('blog_atom') }}" title="Atom Blog Feed">
+    <link rel="alternate" type="application/rss+xml" href="{{ url('blog_rss') }}" title="RSS Blog Feed">
+{% endblock %}
+
+{% block body %}
+    <div class="blog-archive">
+        <header class="blog-archive-hero">
+            <div class="blog-archive-intro">
+                <span class="blog-heading-kicker"><i class="fa fa-lightbulb-o" aria-hidden="true"></i> {{ _('PNL:OJ knowledge hub') }}</span>
+                <h1>{{ _('Learn. Practice. Improve.') }}</h1>
+                <p>{{ _('Practical guides, contest strategies, and programming insights to help you solve better.') }}</p>
+                <div class="blog-archive-highlights">
+                    <span><strong>{{ paginator.count }}</strong> {{ _('articles') }}</span>
+                    <span><i class="fa fa-check-circle" aria-hidden="true"></i> {{ _('Curated for learners') }}</span>
+                </div>
+            </div>
+            <div class="blog-archive-visual" aria-hidden="true">
+                <img src="{{ static('blog/algorithms-cover.webp') }}" alt="">
+                <span class="blog-visual-chip blog-visual-chip-top"><i class="fa fa-code"></i> C++</span>
+                <span class="blog-visual-chip blog-visual-chip-bottom"><i class="fa fa-terminal"></i> Python</span>
+            </div>
+        </header>
+
+        <section class="blog-filter-panel">
+            <div class="blog-filter-heading">
+                <div><i class="fa fa-sliders" aria-hidden="true"></i></div>
+                <span><strong>{{ _('Find your next read') }}</strong><small>{{ _('Search and filter the entire library.') }}</small></span>
+            </div>
+            <form method="get" action="{{ url('blog_archive') }}" class="blog-filter-form">
+                <div class="blog-filter-search">
+                    <label for="blog-search">{{ _('Search articles') }}</label>
+                    <div class="blog-search-input">
+                        <i class="fa fa-search" aria-hidden="true"></i>
+                        <input id="blog-search" type="search" name="q" value="{{ search_query }}"
+                               placeholder="{{ _('Search by title, content, or author...') }}">
+                    </div>
+                </div>
+
+                <div class="blog-filter-field">
+                    <label for="blog-author">{{ _('Author') }}</label>
+                    <select id="blog-author" name="author">
+                        <option value="">{{ _('All authors') }}</option>
+                        {% for author in authors %}
+                            <option value="{{ author.username }}"
+                                    {% if selected_author == author.username %}selected{% endif %}>
+                                {{ author.display_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="blog-filter-field">
+                    <label for="blog-type">{{ _('Post type') }}</label>
+                    <select id="blog-type" name="type">
+                        <option value="all" {% if selected_type == 'all' %}selected{% endif %}>{{ _('All posts') }}</option>
+                        <option value="featured" {% if selected_type == 'featured' %}selected{% endif %}>{{ _('Featured posts') }}</option>
+                        <option value="regular" {% if selected_type == 'regular' %}selected{% endif %}>{{ _('Regular posts') }}</option>
+                    </select>
+                </div>
+
+                <div class="blog-filter-field">
+                    <label for="blog-from">{{ _('From date') }}</label>
+                    <input id="blog-from" type="date" name="from" value="{{ date_from }}">
+                </div>
+
+                <div class="blog-filter-field">
+                    <label for="blog-to">{{ _('To date') }}</label>
+                    <input id="blog-to" type="date" name="to" value="{{ date_to }}">
+                </div>
+
+                <div class="blog-filter-field">
+                    <label for="blog-order">{{ _('Sort by') }}</label>
+                    <select id="blog-order" name="order">
+                        <option value="newest" {% if selected_order == 'newest' %}selected{% endif %}>{{ _('Newest first') }}</option>
+                        <option value="oldest" {% if selected_order == 'oldest' %}selected{% endif %}>{{ _('Oldest first') }}</option>
+                        <option value="title" {% if selected_order == 'title' %}selected{% endif %}>{{ _('Title A-Z') }}</option>
+                        <option value="featured" {% if selected_order == 'featured' %}selected{% endif %}>{{ _('Featured first') }}</option>
+                    </select>
+                </div>
+
+                <div class="blog-filter-actions">
+                    <button type="submit" class="button blog-filter-submit">
+                        <i class="fa fa-filter" aria-hidden="true"></i> {{ _('Apply filters') }}
+                    </button>
+                    {% if has_filters %}
+                        <a href="{{ url('blog_archive') }}" class="blog-filter-clear">{{ _('Clear filters') }}</a>
+                    {% endif %}
+                </div>
+            </form>
+        </section>
+
+        <div class="blog-archive-toolbar">
+            <div>
+                <strong>{{ paginator.count }}</strong> {{ _('posts found') }}
+                {% if search_query %}<span class="blog-query">“{{ search_query }}”</span>{% endif %}
+            </div>
+            <div class="blog-feed-links">
+                <a href="{{ url('blog_rss') }}"><i class="fa fa-rss"></i> RSS</a>
+                <a href="{{ url('blog_atom') }}">Atom</a>
+            </div>
+        </div>
+
+        {% if posts %}
+            <div class="blog-archive-grid">
+                {% for post in posts %}
+                    {% set fallback_cover = loop.cycle(static('blog/competitive-programming-cover.webp'), static('blog/algorithms-cover.webp')) %}
+                    <article class="blog-card{% if post.sticky %} blog-card-featured{% endif %}">
+                        <a class="blog-card-cover" href="{{ url('blog_post', post.id, post.slug) }}" tabindex="-1" aria-hidden="true">
+                            <img src="{{ post.og_image or fallback_cover }}" alt="" loading="lazy">
+                            {% if post.sticky %}
+                                <span class="blog-card-badge"><i class="fa fa-star"></i> {{ _('Featured') }}</span>
+                            {% endif %}
+                        </a>
+                        <div class="blog-card-body">
+                            <div class="blog-card-meta">
+                                {% with post_authors=post.authors.all() %}
+                                    {% if post_authors %}
+                                        <span><i class="fa fa-user"></i> {{ link_users(post_authors) }}</span>
+                                    {% endif %}
+                                {% endwith %}
+                                <span><i class="fa fa-calendar-o"></i> {{ post.publish_on|date(_('N j, Y')) }}</span>
+                            </div>
+                            <h2><a href="{{ url('blog_post', post.id, post.slug) }}">{{ post.title }}</a></h2>
+                            <div class="blog-card-excerpt">
+                                {% set excerpt = post.summary|default(post.content, true)|markdown('blog', 'svg', lazy_load=True)|reference|str %}
+                                {{ excerpt|striptags|truncate(210) }}
+                            </div>
+                            <div class="blog-card-footer">
+                                <a class="blog-card-read" href="{{ url('blog_post', post.id, post.slug) }}">
+                                    {{ _('Read article') }} <i class="fa fa-arrow-right"></i>
+                                </a>
+                                <a href="{{ url('blog_post', post.id, post.slug) }}#comments" aria-label="{{ _('Comments') }}">
+                                    <i class="fa fa-comments-o"></i> {{ post_comment_counts[post.id] or 0 }}
+                                </a>
+                            </div>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="blog-empty-state">
+                <i class="fa fa-search"></i>
+                <h2>{{ _('No posts match your filters') }}</h2>
+                <p>{{ _('Try changing the search text or clearing some filters.') }}</p>
+                <a class="button" href="{{ url('blog_archive') }}">{{ _('View all posts') }}</a>
+            </div>
+        {% endif %}
+
+        {% if page_obj.has_other_pages() %}
+            <div class="bottom-pagination-bar blog-archive-pagination">{% include "list-pages.html" %}</div>
+        {% endif %}
+    </div>
+{% endblock %}

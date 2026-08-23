@@ -1,9 +1,13 @@
+import re
+
 from django.conf import settings
-from django.db.models import Count, Max
+from django.db.models import Count, Max, Q
 from django.http import Http404
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 from django.views.generic import ListView
 
 from judge.comments import CommentedDetailView
@@ -13,7 +17,7 @@ from judge.utils.cachedict import CacheDict
 from judge.utils.diggpaginator import DiggPaginator
 from judge.utils.opengraph import generate_opengraph
 from judge.utils.tickets import filter_visible_tickets
-from judge.utils.views import TitleMixin
+from judge.utils.views import TitleMixin, paginate_query_context
 
 
 class PostList(ListView):
@@ -88,6 +92,94 @@ class PostList(ListView):
         return context
 
 
+class BlogArchiveList(TitleMixin, ListView):
+    model = BlogPost
+    title = gettext_lazy('All posts')
+    context_object_name = 'posts'
+    template_name = 'blog/archive.html'
+    paginate_by = 12
+
+    ORDERING = {
+        'newest': ('-publish_on', '-id'),
+        'oldest': ('publish_on', 'id'),
+        'title': ('title', 'id'),
+        'featured': ('-sticky', '-publish_on', '-id'),
+    }
+
+    def get_paginator(self, queryset, per_page, orphans=0,
+                      allow_empty_first_page=True, **kwargs):
+        return DiggPaginator(queryset, per_page, body=6, padding=2,
+                             orphans=orphans, allow_empty_first_page=allow_empty_first_page, **kwargs)
+
+    def get_queryset(self):
+        now = timezone.now()
+        queryset = BlogPost.objects.filter(visible=True, publish_on__lte=now)
+
+        self.search_query = self.request.GET.get('q', '').strip()[:200]
+        self.author = self.request.GET.get('author', '').strip()[:150]
+        self.post_type = self.request.GET.get('type', 'all')
+        self.order = self.request.GET.get('order', 'newest')
+        self.date_from = parse_date(self.request.GET.get('from', ''))
+        self.date_to = parse_date(self.request.GET.get('to', ''))
+
+        if self.search_query:
+            queryset = queryset.filter(
+                Q(title__icontains=self.search_query) |
+                Q(summary__icontains=self.search_query) |
+                Q(content__icontains=self.search_query) |
+                Q(authors__user__username__icontains=self.search_query) |
+                Q(authors__username_display_override__icontains=self.search_query)
+            )
+
+        if self.author:
+            queryset = queryset.filter(authors__user__username__iexact=self.author)
+
+        if self.post_type == 'featured':
+            queryset = queryset.filter(sticky=True)
+        elif self.post_type == 'regular':
+            queryset = queryset.filter(sticky=False)
+        else:
+            self.post_type = 'all'
+
+        if self.date_from:
+            queryset = queryset.filter(publish_on__date__gte=self.date_from)
+        if self.date_to:
+            queryset = queryset.filter(publish_on__date__lte=self.date_to)
+
+        if self.order not in self.ORDERING:
+            self.order = 'newest'
+
+        return queryset.order_by(*self.ORDERING[self.order]).prefetch_related('authors__user').distinct()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        now = timezone.now()
+        visible_posts = BlogPost.objects.filter(visible=True, publish_on__lte=now)
+
+        context.update({
+            'search_query': self.search_query,
+            'selected_author': self.author,
+            'selected_type': self.post_type,
+            'selected_order': self.order,
+            'date_from': self.date_from.isoformat() if self.date_from else '',
+            'date_to': self.date_to.isoformat() if self.date_to else '',
+            'has_filters': bool(
+                self.search_query or self.author or self.post_type != 'all' or self.date_from or self.date_to or
+                self.order != 'newest'
+            ),
+            'authors': Profile.objects.filter(blogpost__in=visible_posts)
+                                      .select_related('user').distinct().order_by('user__username'),
+        })
+        context.update(paginate_query_context(self.request))
+        context['post_comment_counts'] = {
+            int(page[2:]): count for page, count in
+            Comment.objects
+                   .filter(page__in=['b:%d' % post.id for post in context['posts']], hidden=False)
+                   .values_list('page').annotate(count=Count('page')).order_by()
+        }
+        return context
+
+
 class PostView(TitleMixin, CommentedDetailView):
     model = BlogPost
     pk_url_kwarg = 'id'
@@ -109,6 +201,11 @@ class PostView(TitleMixin, CommentedDetailView):
         context['og_image'] = self.object.og_image or metadata[1]
         context['enable_comments'] = settings.DMOJ_ENABLE_COMMENTS
         context['enable_social'] = settings.DMOJ_ENABLE_SOCIAL
+        context['reading_time'] = max(1, (len(re.findall(r'\w+', self.object.content)) + 219) // 220)
+        context['recent_posts'] = (
+            BlogPost.objects.filter(visible=True, publish_on__lte=timezone.now())
+                    .exclude(id=self.object.id).order_by('-sticky', '-publish_on')[:3]
+        )
 
         return context
 

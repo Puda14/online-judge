@@ -1,52 +1,140 @@
 {% extends "base.html" %}
 
+{% block title_row %}{% endblock %}
+{% block title_ruler %}{% endblock %}
+
 {% block js_media %}
     {% include "comments/media-js.html" %}
+    <script>
+        $(function () {
+            var article = document.querySelector('.blog-article-content');
+            var toc = document.querySelector('.blog-toc-list');
+            var tocPanel = document.querySelector('.blog-toc-panel');
+
+            if (article && toc) {
+                var headings = article.querySelectorAll('h2, h3');
+                headings.forEach(function (heading, index) {
+                    if (!heading.id) heading.id = 'section-' + (index + 1);
+                    var item = document.createElement('li');
+                    var link = document.createElement('a');
+                    link.href = '#' + heading.id;
+                    link.textContent = heading.textContent;
+                    if (heading.tagName === 'H3') item.className = 'blog-toc-subitem';
+                    item.appendChild(link);
+                    toc.appendChild(item);
+                });
+                if (!headings.length && tocPanel) tocPanel.hidden = true;
+            }
+
+        });
+    </script>
 {% endblock %}
 
 {% block media %}
     {% include "comments/media-css.html" %}
 {% endblock %}
 
-{% block header %}
-    {% if post.is_editable_by(request.user) %}
-        <div class="title-line-action">[<a href="{{ url('admin:judge_blogpost_change', post.id) }}">{{ _('Edit') }}</a>]
-        </div>
-    {% endif %}
-{% endblock %}
-
 {% block body %}
-    <div class="post-full">
-        <div class="time">
-            {% with authors=post.authors.all() %}
-                {% if authors %}
-                    <span class="post-authors">{{ link_users(authors) }}</span>
-                {% endif %}
-            {% endwith %}
-            <span class="post-time">
-                {% trans trimmed time=post.publish_on|date(_("N j, Y, g:i a")) %}
-                    posted on {{ time }}
-                {% endtrans %}
-            </span>
-        </div>
-        <div class="body content-description">
-            {% cache 86400 'post_content' post.id MATH_ENGINE %}
-                {{ post.content|markdown('blog', MATH_ENGINE)|reference|str|safe}}
-            {% endcache %}
-        </div>
-    </div>
-    
-    {% if enable_social %}
-        <hr>
-        <span class="social">
-            {{ post_to_facebook(request, contest, '<i class="fa fa-facebook-official"></i>') }}
-            {{ post_to_twitter(request, SITE_NAME + ':', contest, '<i class="fa fa-twitter"></i>') }}
-        </span>
-    {% endif %}
+    {% set article_cover = post.og_image or static('blog/competitive-programming-cover.webp') %}
+    <div class="blog-article-page">
+        <article class="blog-article-shell">
+            <header class="blog-article-hero">
+                <div class="blog-article-cover">
+                    <img src="{{ article_cover }}" alt="" fetchpriority="high">
+                    <div class="blog-article-cover-shade" aria-hidden="true"></div>
+                </div>
+                <div class="blog-article-heading">
+                    <div class="blog-article-kicker">
+                        <span><i class="fa fa-code" aria-hidden="true"></i> {{ _('Competitive programming') }}</span>
+                        {% if post.sticky %}
+                            <span class="blog-featured-label"><i class="fa fa-star" aria-hidden="true"></i> {{ _('Featured') }}</span>
+                        {% endif %}
+                    </div>
+                    <h1>{{ post.title }}</h1>
+                    {% if post.summary %}
+                        {% set article_summary = post.summary|markdown('blog', 'svg')|reference|str %}
+                        <p class="blog-article-lead">{{ article_summary|striptags|truncate(240) }}</p>
+                    {% endif %}
 
-    {% if enable_comments %}
-        {% include "comments/list.html" %}
-    {% endif %}
+                    <div class="blog-article-byline">
+                        {% with authors=post.authors.all() %}
+                            {% if authors %}
+                                <div class="blog-author-stack" aria-hidden="true">
+                                    {% for author in authors[:3] %}
+                                        <img src="{{ gravatar(author, 80) }}" alt="">
+                                    {% endfor %}
+                                </div>
+                                <div class="blog-byline-copy">
+                                    <span class="blog-byline-label">{{ _('Written by') }}</span>
+                                    <span class="post-authors">{{ link_users(authors) }}</span>
+                                </div>
+                            {% endif %}
+                        {% endwith %}
+                        <div class="blog-article-facts">
+                            <span><i class="fa fa-calendar-o" aria-hidden="true"></i> {{ post.publish_on|date(_('N j, Y')) }}</span>
+                            <span><i class="fa fa-clock-o" aria-hidden="true"></i> {{ _('%(minutes)s min read', minutes=reading_time) }}</span>
+                        </div>
+                        {% if post.is_editable_by(request.user) %}
+                            <a class="blog-edit-link" href="{{ url('admin:judge_blogpost_change', post.id) }}">
+                                <i class="fa fa-pencil" aria-hidden="true"></i> {{ _('Edit') }}
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </header>
+
+            <div class="blog-article-layout">
+                <div class="blog-article-main">
+                    <div class="blog-article-content">
+                        {% cache 86400 'post_content' post.id MATH_ENGINE %}
+                            {{ post.content|markdown('blog', MATH_ENGINE)|reference|str|safe }}
+                        {% endcache %}
+                    </div>
+                </div>
+
+                <aside class="blog-article-aside">
+                    <div class="blog-toc-panel">
+                        <span class="blog-aside-title"><i class="fa fa-list-ul" aria-hidden="true"></i> {{ _('In this article') }}</span>
+                        <ol class="blog-toc-list"></ol>
+                    </div>
+                    <a class="blog-back-link" href="{{ url('blog_archive') }}">
+                        <i class="fa fa-arrow-left" aria-hidden="true"></i>
+                        <span><small>{{ _('Keep exploring') }}</small>{{ _('View all posts') }}</span>
+                    </a>
+                </aside>
+            </div>
+        </article>
+
+        {% if recent_posts %}
+            <section class="blog-related" aria-labelledby="related-posts-title">
+                <div class="blog-section-heading">
+                    <div>
+                        <span>{{ _('Continue learning') }}</span>
+                        <h2 id="related-posts-title">{{ _('Latest articles') }}</h2>
+                    </div>
+                    <a href="{{ url('blog_archive') }}">{{ _('View all') }} <i class="fa fa-arrow-right" aria-hidden="true"></i></a>
+                </div>
+                <div class="blog-related-grid">
+                    {% for related in recent_posts %}
+                        {% set related_fallback = loop.cycle(static('blog/algorithms-cover.webp'), static('blog/competitive-programming-cover.webp')) %}
+                        <a class="blog-related-card" href="{{ url('blog_post', related.id, related.slug) }}">
+                            <img src="{{ related.og_image or related_fallback }}" alt="" loading="lazy">
+                            <span>
+                                <small>{{ related.publish_on|date(_('N j, Y')) }}</small>
+                                <strong>{{ related.title }}</strong>
+                            </span>
+                        </a>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+
+        {% if enable_comments %}
+            <section class="blog-comments-shell" id="comments">
+                {% include "comments/list.html" %}
+            </section>
+        {% endif %}
+    </div>
 {% endblock %}
 
 {% block bodyend %}
